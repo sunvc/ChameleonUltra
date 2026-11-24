@@ -37,5 +37,7 @@ data_frame_tx_t *bravo_cmd_set_disable_sleep(uint16_t cmd, uint16_t status, uint
 data_frame_tx_t *bravo_cmd_get_ble_name(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_set_ble_name(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_get_slot_poll_list(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *bravo_cmd_set_fence_active_slot(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 
 #endif

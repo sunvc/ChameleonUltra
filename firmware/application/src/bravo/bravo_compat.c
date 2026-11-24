@@ -54,6 +54,8 @@ NRF_LOG_MODULE_REGISTER();
 #define CMD_GET_SLOT_POLL_LIST         1763  // 0x6e3
 #define CMD_GET_BLE_NAME               6076
 #define CMD_SET_BLE_NAME               6077
+#define CMD_SET_FENCE_ACTIVE_SLOT      6068
+#define CMD_CHECK_FENCE_STATUS         6069
 
 typedef struct {
     uint8_t version;
@@ -62,7 +64,7 @@ typedef struct {
     uint8_t secret[BRAVO_KEY_LEN];
     uint8_t fence_key[BRAVO_KEY_LEN];
     uint8_t ble_name[BRAVO_BLE_NAME_LEN + 1];
-    // FDS stores whole words; pad so the struct equals the flash record length
+    // FDS alignment padding; reserved[0] stores the fence active slot (6068)
     uint8_t reserved[2];
 } PACKED bravo_compat_config_t;
 
@@ -264,6 +266,37 @@ data_frame_tx_t *bravo_cmd_get_slot_poll_list(uint16_t cmd, uint16_t status, uin
     uint8_t list[TAG_MAX_SLOT_NUM];
     bravo_polling_get_slot_list(list);
     return data_frame_make(cmd, STATUS_SUCCESS, sizeof(list), list);
+}
+
+data_frame_tx_t *bravo_cmd_set_fence_active_slot(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    (void)status;
+    // Accept 1-byte or big-endian 2-byte slot payloads, clamp to the valid range.
+    uint8_t slot;
+    if (length == 1) {
+        slot = data[0];
+    } else if (length == 2) {
+        slot = (uint8_t)(((uint16_t)data[0] << 8) | data[1]);
+    } else {
+        return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
+    }
+    if (slot >= TAG_MAX_SLOT_NUM) {
+        slot = TAG_MAX_SLOT_NUM - 1;
+    }
+    m_cfg.reserved[0] = slot;
+    cfg_save();
+    return ok_empty(cmd);
+}
+
+data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    (void)status; (void)data;
+    // dalong rejects anything but a 2-byte payload with PAR_ERR; keep that shape.
+    // No restriction is enforced here: always report the fence as valid (1) and
+    // echo the configured active slot as the second byte.
+    if (length != 2) {
+        return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
+    }
+    uint8_t payload[2] = {1, m_cfg.reserved[0]};
+    return data_frame_make(cmd, STATUS_SUCCESS, sizeof(payload), payload);
 }
 
 data_frame_tx_t *bravo_compat_intercept(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {

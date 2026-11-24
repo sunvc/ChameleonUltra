@@ -25,6 +25,8 @@
 {    6053, NULL, bravo_cmd_set_fence_key,     NULL },
 {    6060, NULL, bravo_cmd_get_disable_sleep, NULL },
 {    6061, NULL, bravo_cmd_set_disable_sleep, NULL },
+{    6068, NULL, bravo_cmd_set_fence_active_slot, NULL },
+{    6069, NULL, bravo_cmd_check_fence_status,     NULL },
 {    6076, NULL, bravo_cmd_get_ble_name,      NULL },
 {    6077, NULL, bravo_cmd_set_ble_name,      NULL },
 {    1763, NULL, bravo_cmd_get_slot_poll_list, NULL },
