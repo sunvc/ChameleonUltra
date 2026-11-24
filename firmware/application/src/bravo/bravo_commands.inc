@@ -33,6 +33,7 @@
 {    6071, NULL, bravo_cmd_ack,                    NULL },
 {    6072, NULL, bravo_cmd_set_fence_card,        NULL },
 {    6074, NULL, bravo_cmd_ack,                    NULL },
+{    6064, NULL, bravo_cmd_fence_anticoll,        NULL },
 {    6076, NULL, bravo_cmd_get_ble_name,      NULL },
 {    6077, NULL, bravo_cmd_set_ble_name,      NULL },
 {    1763, NULL, bravo_cmd_get_slot_poll_list, NULL },

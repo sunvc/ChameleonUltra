@@ -326,6 +326,12 @@ data_frame_tx_t *bravo_cmd_set_fence_card(uint16_t cmd, uint16_t status, uint16_
     return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
 }
 
+// 6064: fence anti-collision write. Payload is identical to upstream
+// cmd 4001 (uidlen|uid|atqa|sak|atslen|ats), so reuse that handler.
+data_frame_tx_t *bravo_cmd_fence_anticoll(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    return rewrap(cmd, app_cmd_execute(4001, status, length, data));
+}
+
 data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     // The companion app probes fence support with a zero-length 6069 and
