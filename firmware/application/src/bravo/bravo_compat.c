@@ -282,20 +282,26 @@ static data_frame_tx_t *rewrap(uint16_t outer_cmd, data_frame_tx_t *sub) {
 
 data_frame_tx_t *bravo_cmd_set_fence_active_slot(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
-    // dalong semantics (from reverse engineering): 3-byte payload
-    // [slot, subcmd BE16]. Switch to the slot, execute the wrapped command
-    // in that slot context, restore the original slot, and return its frame.
-    if (length != 3 || data[0] >= TAG_MAX_SLOT_NUM) {
-        return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
+    // Companion app sends SET_ACTIVE_SLOT_BY_FENCE as a 1-byte slot index;
+    // activate that slot (fence-triggered switch).
+    if (length == 1) {
+        uint8_t slot = data[0];
+        if (slot >= TAG_MAX_SLOT_NUM) {
+            return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
+        }
+        tag_emulation_change_slot(slot, true);
+        return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
     }
-    uint16_t subcmd = (uint16_t)(((uint16_t)data[1] << 8) | data[2]);
-
-    uint8_t original = tag_emulation_get_slot();
-    tag_emulation_set_slot(data[0]);
-    data_frame_tx_t *sub = app_cmd_execute(subcmd, 0, 0, NULL);
-    tag_emulation_set_slot(original);
-
-    return rewrap(cmd, sub);
+    // Legacy forwarder form: 3-byte [slot, subcmd BE16].
+    if (length == 3 && data[0] < TAG_MAX_SLOT_NUM) {
+        uint16_t subcmd = (uint16_t)(((uint16_t)data[1] << 8) | data[2]);
+        uint8_t original = tag_emulation_get_slot();
+        tag_emulation_set_slot(data[0]);
+        data_frame_tx_t *sub = app_cmd_execute(subcmd, 0, 0, NULL);
+        tag_emulation_set_slot(original);
+        return rewrap(cmd, sub);
+    }
+    return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
 }
 
 data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
