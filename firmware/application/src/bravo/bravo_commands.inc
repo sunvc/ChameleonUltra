@@ -29,6 +29,7 @@
 {    6063, NULL, bravo_cmd_set_smart_polling, NULL },
 {    6068, NULL, bravo_cmd_set_fence_active_slot, NULL },
 {    6069, NULL, bravo_cmd_check_fence_status,     NULL },
+{    6073, NULL, bravo_cmd_ack,                    NULL },
 {    6076, NULL, bravo_cmd_get_ble_name,      NULL },
 {    6077, NULL, bravo_cmd_set_ble_name,      NULL },
 {    1763, NULL, bravo_cmd_get_slot_poll_list, NULL },

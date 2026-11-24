@@ -304,6 +304,11 @@ data_frame_tx_t *bravo_cmd_set_fence_active_slot(uint16_t cmd, uint16_t status, 
     return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
 }
 
+data_frame_tx_t *bravo_cmd_ack(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    (void)status; (void)length; (void)data;
+    return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
+}
+
 data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     // The companion app probes fence support with a zero-length 6069 and
