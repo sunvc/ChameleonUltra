@@ -300,13 +300,19 @@ data_frame_tx_t *bravo_cmd_set_fence_active_slot(uint16_t cmd, uint16_t status, 
 
 data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
-    // dalong semantics: 2-byte payload [subcmd BE16], executed against the
-    // current active slot without switching. Rejects other lengths.
-    if (length != 2) {
-        return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
+    // The companion app probes fence support with a zero-length 6069 and
+    // classifies the response by its status/payload. Answer "supported".
+    if (length == 0) {
+        uint8_t ready = 1;
+        return data_frame_make(cmd, STATUS_SUCCESS, 1, &ready);
     }
-    uint16_t subcmd = (uint16_t)(((uint16_t)data[0] << 8) | data[1]);
-    return rewrap(cmd, app_cmd_execute(subcmd, 0, 0, NULL));
+    // With a 2-byte payload [subcmd BE16], run that command on the current
+    // slot and return its result (dalong forwarder semantics).
+    if (length == 2) {
+        uint16_t subcmd = (uint16_t)(((uint16_t)data[0] << 8) | data[1]);
+        return rewrap(cmd, app_cmd_execute(subcmd, 0, 0, NULL));
+    }
+    return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
 }
 
 data_frame_tx_t *bravo_compat_intercept(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
