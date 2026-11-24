@@ -35,6 +35,7 @@ NRF_LOG_MODULE_REGISTER();
 #define BRAVO_COMPAT_FDS_RECORD_KEY 0x0001
 
 #define BRAVO_COMPAT_CFG_VERSION   1
+#define BRAVO_SLOT_COUNT           TAG_MAX_SLOT_NUM  // 32-slot poll list length
 #define BRAVO_KEY_LEN              48
 #define BRAVO_BLE_NAME_LEN         31  // BLE GAP max adv-safe name length
 
@@ -363,7 +364,12 @@ data_frame_tx_t *bravo_compat_intercept(uint16_t cmd, uint16_t status, uint16_t 
     // 6001 collides with upstream HF14A_4_APDU_SEND. The dalong/Nolet app
     // always uses it as the 32-slot poll list, so route it here before the
     // upstream table sees it (APDU_SEND becomes unreachable).
-    if (cmd == CMD_SET_SLOT_POLL_LIST) {
+    // 6001 collides with upstream HF14A_4_APDU_SEND. The dalong app uses a
+    // 32-byte payload (one byte per slot) for the poll list; other clients
+    // (GUI, CLI) use 6001 for APDU send with arbitrary lengths. Only treat
+    // the exact slot-count payload as the poll list and let everything else
+    // fall through to the upstream APDU handler.
+    if (cmd == CMD_SET_SLOT_POLL_LIST && length == BRAVO_SLOT_COUNT) {
         if (!bravo_polling_set_slot_list(data, length)) {
             return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
         }
