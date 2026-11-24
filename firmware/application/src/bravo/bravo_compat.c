@@ -309,6 +309,23 @@ data_frame_tx_t *bravo_cmd_ack(uint16_t cmd, uint16_t status, uint16_t length, u
     return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
 }
 
+// 6072: fence card type write, 5 bytes [slot, sense, enable, tag_type BE16].
+data_frame_tx_t *bravo_cmd_set_fence_card(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    (void)status;
+    if (length == 5) {
+        uint8_t slot = data[0];
+        uint16_t type = (uint16_t)(((uint16_t)data[3] << 8) | data[4]);
+        if (slot < TAG_MAX_SLOT_NUM && is_tag_specific_type_valid((tag_specific_type_t)type)) {
+            tag_emulation_change_type(slot, (tag_specific_type_t)type);
+            if (data[2] != 0) {
+                tag_emulation_slot_set_enable(slot, get_sense_type_from_tag_type((tag_specific_type_t)type), true);
+            }
+            return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
+        }
+    }
+    return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
+}
+
 data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     // The companion app probes fence support with a zero-length 6069 and
