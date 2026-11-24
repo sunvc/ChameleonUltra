@@ -64,11 +64,57 @@ Single-line BRAVO hook points (the merge-sensitive surface for features):
 | 6050-6053 | Custom git, sleep time, fence key |
 | 6060 / 6061 | Permanent awake get/set |
 | 6062 / 6063 | Smart-poll sector filter get/set |
-| 6068 | Fence forwarder: 3-byte `[slot, subcmd BE16]`, runs subcmd in that slot |
-| 6069 | Fence status: 2-byte `[subcmd BE16]`, runs subcmd on the active slot |
 | 6076 / 6077 | BLE GAP name get/set |
-| 1763 / 6001 | 32-byte slot poll list (6001 intercepted before upstream table) |
+| 1763 / 6001 | Slot poll list (1763 read, 6001 write 32-byte) |
 | 8001 | Alias of the MF1 block write for 32-slot builds |
+| 4009 | MF1 emulator config — returns **6** fields (upstream 5 + PRNG) |
+| 6090 / 6091 | Capture buffer read / clear (protocol analysis) |
+
+Fence commands (6064/6067/6068/6069/6071/6072/6073/6074) are documented in
+the section below.
+
+Client compatibility notes (verified against GameTec-live/ChameleonUltraGUI):
+
+- 6001 is only treated as the slot poll list when the payload is 32 bytes;
+  other lengths fall through to the upstream HF14A-4 APDU send, so APDU
+  tooling keeps working.
+- 1019 / 1023 return 32 slots (128 / 64 bytes). Clients that hardcode 8
+  slots (the GUI) read the first 8 and ignore the rest — no crash, but
+  slots 8-31 are not visible there.
+- 4009's extra 6th byte is ignored by clients that read only the first 5.
+
+## Fence protocol (dalong companion app)
+
+Reconstructed from real BLE captures of the "无感刷卡助手" bundle
+(`cn.dalong.geofence`, Flutter). The app uploads a card stored in the app
+into a device slot and activates it on a geofence event. Full working
+sequence, in order:
+
+| Cmd | Payload | Meaning | Impl |
+|---|---|---|---|
+| 6069 | empty | fence status probe → reply `SUCCESS` + `01` | `bravo_cmd_check_fence_status` |
+| 6074 | empty | pre-check | ack |
+| 6072 | 5 `[slot, sense, enable, tag_type BE16]` | set fence card type | `bravo_cmd_set_fence_card` → `tag_emulation_change_type` |
+| 6071 | 2 `[tag_type BE16]` | confirm | ack |
+| 6064 | `uidlen\|uid\|atqa\|sak\|atslen\|ats` | anti-collision | `bravo_cmd_fence_anticoll` → upstream **4001** handler |
+| 6067 | `[block]` + N×16-byte blocks | MF1 block write | `bravo_cmd_fence_block_write` → upstream **4000** handler |
+| 6073 | 4 bytes | fence config | ack |
+| 1007 | `[slot, sense, nick]` | slot nick (standard) | upstream |
+| 1006 | `[slot, sense, enable]` | slot enable (standard) | upstream |
+| 6068 | 1 `[slot]` | activate slot + LED marquee | `bravo_cmd_set_fence_active_slot` → `tag_emulation_change_slot` + `apply_slot_change` |
+
+Notes:
+
+- 6069 with a 2-byte `[subcmd BE16]` still runs that sub-command on the
+  active slot (legacy forwarder form).
+- 6068 also accepts the 3-byte `[slot, subcmd BE16]` forwarder form.
+- 6064 and 6067 reuse upstream handlers because the wire format matches
+  4001 / 4000 exactly.
+- The app probes fence support with 6069; answering `PAR_ERR` makes it
+  report "fence firmware unavailable" and stop. Zero-length 6069 must
+  return `SUCCESS`.
+- Settings page "加载设置" reads 4009 and requires the 6-byte reply; the
+  upstream 5-byte reply made it fail. Byte 5 is PRNG type.
 
 ## Deliberately not ported
 
