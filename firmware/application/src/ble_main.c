@@ -442,9 +442,12 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
             // LED indication will be changed when advertising starts.
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
             g_is_ble_connected = false;
-            bravo_ble_on_disconnected(); // BRAVO fork hook
-            // call sleep_timer_start *after* unsetting g_is_ble_connected
-            sleep_timer_start(SLEEP_DELAY_MS_BLE_DISCONNECTED);
+            bool bravo_stay_awake = bravo_ble_on_disconnected(); // BRAVO fork hook
+            // call sleep_timer_start *after* unsetting g_is_ble_connected,
+            // unless permanent-awake mode asked to keep the device up
+            if (!bravo_stay_awake) {
+                sleep_timer_start(SLEEP_DELAY_MS_BLE_DISCONNECTED);
+            }
             break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST: {

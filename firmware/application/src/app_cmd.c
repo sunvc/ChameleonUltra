@@ -25,6 +25,7 @@
 #endif
 #include "nfc_14a.h"
 #include "bravo_commands.h" // BRAVO fork hook
+#include "bravo_compat.h"   // BRAVO fork hook
 /* Forward declarations for functions added to nfc_14a.c/h in this PR.
  * These are declared here to avoid build failure if nfc_14a.h is not yet
  * updated on the build system. */
@@ -3436,6 +3437,15 @@ static void auto_response_data(data_frame_tx_t *resp) {
 void on_data_frame_received(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     data_frame_tx_t *response = NULL;
     bool is_cmd_support = false;
+
+    // BRAVO fork hook: intercept IDs whose upstream meaning conflicts with
+    // the dalong/Nolet app protocol (currently 6001).
+    response = bravo_compat_intercept(cmd, status, length, data);
+    if (response != NULL) {
+        auto_response_data(response);
+        return;
+    }
+
     for (int i = 0; i < ARRAY_SIZE(m_data_cmd_map); i++) {
         if (m_data_cmd_map[i].cmd == cmd) {
             is_cmd_support = true;

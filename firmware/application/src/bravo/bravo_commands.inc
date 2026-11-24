@@ -3,8 +3,28 @@
 #if defined(PROJECT_CHAMELEON_ULTRA)
 {    DATA_CMD_BRAVO_MF1_OFFLINE_CLONE,        NULL, bravo_cmd_offline_clone,        NULL },
 {    DATA_CMD_BRAVO_MF1_OFFLINE_CLONE_STATUS, NULL, bravo_cmd_offline_clone_status, NULL },
+// 32-slot alias for the MF1 block write (Nolet app picks this when slotCount==32)
+{    8001,                                    NULL, cmd_processor_mf1_write_emu_block_data, NULL },
 #endif
 {    6038, NULL, bravo_cmd_get_auto_polling,       NULL },
 {    6039, NULL, bravo_cmd_set_auto_polling,       NULL },
 {    6040, NULL, bravo_cmd_get_auto_polling_delay, NULL },
 {    6041, NULL, bravo_cmd_set_auto_polling_delay, NULL },
+// Dalong/Nolet 6000-range compatibility (6001 is intercepted before this table)
+{    6042, NULL, bravo_cmd_get_license_key,   NULL },
+{    6043, NULL, bravo_cmd_set_license_key,   NULL },
+{    6044, NULL, bravo_cmd_set_secret_key,    NULL },
+{    6045, NULL, bravo_cmd_get_trial,         NULL },
+{    6046, NULL, bravo_cmd_get_ic_polling,    NULL },
+{    6047, NULL, bravo_cmd_set_ic_polling,    NULL },
+{    6048, NULL, bravo_cmd_get_id_polling,    NULL },
+{    6049, NULL, bravo_cmd_set_id_polling,    NULL },
+{    6050, NULL, bravo_cmd_get_custom_git,    NULL },
+{    6051, NULL, bravo_cmd_get_sleep_time,    NULL },
+{    6052, NULL, bravo_cmd_set_sleep_time,    NULL },
+{    6053, NULL, bravo_cmd_set_fence_key,     NULL },
+{    6060, NULL, bravo_cmd_get_disable_sleep, NULL },
+{    6061, NULL, bravo_cmd_set_disable_sleep, NULL },
+{    6076, NULL, bravo_cmd_get_ble_name,      NULL },
+{    6077, NULL, bravo_cmd_set_ble_name,      NULL },
+{    1763, NULL, bravo_cmd_get_slot_poll_list, NULL },

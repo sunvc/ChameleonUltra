@@ -22,6 +22,13 @@ void bravo_polling_on_sleep(void);
 void bravo_polling_note_auth_block(uint8_t block);
 void bravo_polling_note_auth_result(bool success);
 
+// Dalong-compatible per-slot poll list (cmds 1763/6001) and IC/ID gates
+// (cmds 6046-6049). The list length is always TAG_MAX_SLOT_NUM.
+void bravo_polling_get_slot_list(uint8_t *out);
+bool bravo_polling_set_slot_list(const uint8_t *in, uint16_t length);
+bool bravo_polling_get_sense_gate(bool hf);
+void bravo_polling_set_sense_gate(bool hf, bool enable);
+
 // BLE command processors (cmds 6038-6041).
 data_frame_tx_t *bravo_cmd_get_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);

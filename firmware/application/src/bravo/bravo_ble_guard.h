@@ -5,7 +5,8 @@
 #include <stdbool.h>
 
 // BRAVO fork hook: called from the BLE GAP disconnect handler.
-// Decides whether advertising may restart given the pending sleep path.
-void bravo_ble_on_disconnected(void);
+// Restarts advertising when the device will stay awake. Returns true when
+// the caller must skip the disconnect sleep timer (permanent-awake mode).
+bool bravo_ble_on_disconnected(void);
 
 #endif

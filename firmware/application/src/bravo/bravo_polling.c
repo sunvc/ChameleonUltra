@@ -25,8 +25,9 @@ NRF_LOG_MODULE_REGISTER();
 #define BRAVO_POLLING_FDS_FILE_ID    0x1300
 #define BRAVO_POLLING_FDS_RECORD_KEY 0x0001
 
-#define BRAVO_POLLING_CFG_VERSION    3
+#define BRAVO_POLLING_CFG_VERSION    4
 #define BRAVO_POLLING_CFG_V2_SIZE    20  // 1+1+8+8+2, 8-slot layout
+#define BRAVO_POLLING_CFG_V3_SIZE    68  // 32-slot layout without IC/ID gates
 #define BRAVO_POLLING_DEFAULT_DELAY  0
 #define BRAVO_POLLING_NO_SECTOR      0xFF
 
@@ -42,11 +43,14 @@ typedef struct {
     uint8_t  slot_enable[TAG_MAX_SLOT_NUM];   // per-slot poll switch
     uint8_t  last_auth_sector[TAG_MAX_SLOT_NUM]; // smart-poll sector memory
     uint16_t delay_ms;                        // pre-switch delay at field wake
+    uint8_t  ic_polling;                      // HF (IC) field-wake gate, cmd 6046/6047
+    uint8_t  id_polling;                      // LF (ID) field-wake gate, cmd 6048/6049
 } PACKED bravo_polling_config_t;
 
 // Migration depends on these exact layouts
-STATIC_ASSERT(sizeof(bravo_polling_config_t) == 68);
+STATIC_ASSERT(sizeof(bravo_polling_config_t) == 70);
 STATIC_ASSERT(BRAVO_POLLING_CFG_V2_SIZE == 20);
+STATIC_ASSERT(BRAVO_POLLING_CFG_V3_SIZE == 68);
 
 static bravo_polling_config_t m_cfg;
 static bool m_runtime_disabled;   // latched by a button press, RAM only
@@ -63,6 +67,8 @@ static void cfg_set_defaults(void) {
         m_cfg.last_auth_sector[i] = BRAVO_POLLING_NO_SECTOR;
     }
     m_cfg.delay_ms = BRAVO_POLLING_DEFAULT_DELAY;
+    m_cfg.ic_polling = 1;
+    m_cfg.id_polling = 1;
 }
 
 static void cfg_save(void) {
@@ -87,13 +93,20 @@ void bravo_polling_init(void) {
             stored.version == BRAVO_POLLING_CFG_VERSION &&
             len == sizeof(stored)) {
         m_cfg = stored;
+    } else if (len == BRAVO_POLLING_CFG_V3_SIZE) {
+        // v3: identical layout minus the two IC/ID gate bytes at the end
+        memcpy(&m_cfg, &stored, BRAVO_POLLING_CFG_V3_SIZE);
+        m_cfg.version = BRAVO_POLLING_CFG_VERSION;
+        m_cfg.ic_polling = 1;
+        m_cfg.id_polling = 1;
+        NRF_LOG_INFO("Auto polling config migrated v3 -> v4");
     } else if (len == BRAVO_POLLING_CFG_V2_SIZE) {
         uint8_t *old = (uint8_t *)&stored;
         m_cfg.enabled = old[1];
         memcpy(m_cfg.slot_enable, &old[2], 8);
         memcpy(m_cfg.last_auth_sector, &old[2 + 8], 8);
         m_cfg.delay_ms = (uint16_t)((old[18] << 8) | old[19]);
-        NRF_LOG_INFO("Auto polling config migrated v2 -> v3");
+        NRF_LOG_INFO("Auto polling config migrated v2 -> v4");
     }
 }
 
@@ -170,6 +183,10 @@ void bravo_polling_note_auth_result(bool success) {
 void bravo_polling_on_field_wake(bool hf) {
     if (!m_cfg.enabled || m_runtime_disabled) {
         NRF_LOG_DEBUG("Smart poll: auto_polling not enabled in settings");
+        return;
+    }
+    // IC = HF gate (6046/6047), ID = LF gate (6048/6049)
+    if ((hf && !m_cfg.ic_polling) || (!hf && !m_cfg.id_polling)) {
         return;
     }
 
@@ -252,4 +269,34 @@ data_frame_tx_t *bravo_cmd_set_auto_polling_delay(uint16_t cmd, uint16_t status,
     m_cfg.delay_ms = U16NTOHS(*(uint16_t *)data);
     cfg_save();
     return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
+}
+
+void bravo_polling_get_slot_list(uint8_t *out) {
+    for (uint8_t i = 0; i < TAG_MAX_SLOT_NUM; i++) {
+        out[i] = m_cfg.slot_enable[i] ? 1 : 0;
+    }
+}
+
+bool bravo_polling_set_slot_list(const uint8_t *in, uint16_t length) {
+    if (length != TAG_MAX_SLOT_NUM) {
+        return false;
+    }
+    for (uint8_t i = 0; i < TAG_MAX_SLOT_NUM; i++) {
+        m_cfg.slot_enable[i] = in[i] ? 1 : 0;
+    }
+    cfg_save();
+    return true;
+}
+
+bool bravo_polling_get_sense_gate(bool hf) {
+    return hf ? m_cfg.ic_polling : m_cfg.id_polling;
+}
+
+void bravo_polling_set_sense_gate(bool hf, bool enable) {
+    if (hf) {
+        m_cfg.ic_polling = enable ? 1 : 0;
+    } else {
+        m_cfg.id_polling = enable ? 1 : 0;
+    }
+    cfg_save();
 }

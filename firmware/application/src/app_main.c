@@ -46,6 +46,7 @@ NRF_LOG_MODULE_REGISTER();
 #include "bravo_offline_clone_job.h" // BRAVO fork hook
 #endif
 #include "bravo_polling.h" // BRAVO fork hook
+#include "bravo_compat.h"  // BRAVO fork hook
 
 #if defined(PROJECT_CHAMELEON_ULTRA)
 #include "rc522.h"
@@ -1160,6 +1161,7 @@ int main(void) {
     sleep_timer_init();       // Soft timer initialization for hibernation
     tag_emulation_init();     // Analog card initialization
     bravo_polling_init();       // BRAVO fork hook: load auto polling config
+    bravo_compat_init();        // BRAVO fork hook: load dalong-compat keys/name
     rgb_marquee_init();       // Light effect initialization
 
     ble_passkey_init();       // init ble connect key.
