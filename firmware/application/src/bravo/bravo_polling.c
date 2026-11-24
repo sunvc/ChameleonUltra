@@ -25,7 +25,8 @@ NRF_LOG_MODULE_REGISTER();
 #define BRAVO_POLLING_FDS_FILE_ID    0x1300
 #define BRAVO_POLLING_FDS_RECORD_KEY 0x0001
 
-#define BRAVO_POLLING_CFG_VERSION    2
+#define BRAVO_POLLING_CFG_VERSION    3
+#define BRAVO_POLLING_CFG_V2_SIZE    20  // 1+1+8+8+2, 8-slot layout
 #define BRAVO_POLLING_DEFAULT_DELAY  0
 #define BRAVO_POLLING_NO_SECTOR      0xFF
 
@@ -42,6 +43,10 @@ typedef struct {
     uint8_t  last_auth_sector[TAG_MAX_SLOT_NUM]; // smart-poll sector memory
     uint16_t delay_ms;                        // pre-switch delay at field wake
 } PACKED bravo_polling_config_t;
+
+// Migration depends on these exact layouts
+STATIC_ASSERT(sizeof(bravo_polling_config_t) == 68);
+STATIC_ASSERT(BRAVO_POLLING_CFG_V2_SIZE == 20);
 
 static bravo_polling_config_t m_cfg;
 static bool m_runtime_disabled;   // latched by a button press, RAM only
@@ -71,18 +76,25 @@ void bravo_polling_init(void) {
     cfg_set_defaults();
     m_runtime_disabled = false;
     m_original_saved = false;
+    m_pending_block = 0;
 
+    // Length-aware read: v2 records (20 bytes, 8 slots) migrate in place;
+    // the remaining slot entries keep their defaults from cfg_set_defaults().
     bravo_polling_config_t stored;
     uint16_t len = sizeof(stored);
     if (fds_read_sync(BRAVO_POLLING_FDS_FILE_ID, BRAVO_POLLING_FDS_RECORD_KEY,
                       &len, (uint8_t *)&stored) &&
-            len == sizeof(stored) &&
-            stored.version == BRAVO_POLLING_CFG_VERSION) {
+            stored.version == BRAVO_POLLING_CFG_VERSION &&
+            len == sizeof(stored)) {
         m_cfg = stored;
+    } else if (len == BRAVO_POLLING_CFG_V2_SIZE) {
+        uint8_t *old = (uint8_t *)&stored;
+        m_cfg.enabled = old[1];
+        memcpy(m_cfg.slot_enable, &old[2], 8);
+        memcpy(m_cfg.last_auth_sector, &old[2 + 8], 8);
+        m_cfg.delay_ms = (uint16_t)((old[18] << 8) | old[19]);
+        NRF_LOG_INFO("Auto polling config migrated v2 -> v3");
     }
-    m_runtime_disabled = false;
-    m_original_saved = false;
-    m_pending_block = 0;
 }
 
 // Smart-poll filter: any slot with a remembered non-zero auth sector turns

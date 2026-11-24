@@ -441,15 +441,15 @@ void tag_emulation_sense_switch(tag_sense_type_t type, bool enable) {
 }
 
 static void tag_emulation_migrate_slot_config_v0_to_v8(void) {
-    // Copy old slotConfig content
-    uint8_t tmpbuf[sizeof(slotConfig)];
+    // Old records (versions 0..7) always hold the 8-slot, 68-byte layout
+    uint8_t tmpbuf[TAG_SLOT_CONFIG_V8_SIZE];
     memcpy(tmpbuf, (uint8_t *)&slotConfig, sizeof(tmpbuf));
     NRF_LOG_INFO("Migrating slotConfig v0...");
     NRF_LOG_HEXDUMP_INFO(tmpbuf, sizeof(tmpbuf));
-    // Populate new slotConfig struct
-    slotConfig.version = TAG_SLOT_CONFIG_CURRENT_VERSION;
+    // Populate v8 slot entries; slots 8..31 keep their zeroed defaults
+    slotConfig.version = 8;
     slotConfig.active_slot = tmpbuf[0];
-    for (uint8_t i = 0; i < ARRAYLEN(slotConfig.slots); i++) {
+    for (uint8_t i = 0; i < TAG_SLOT_V8_NUM; i++) {
         bool enabled = tmpbuf[4 + (i * 4)] & 1;
 
         slotConfig.slots[i].tag_hf = tmpbuf[4 + (i * 4) + 2];
@@ -472,6 +472,18 @@ static void tag_emulation_migrate_slot_config_v0_to_v8(void) {
     }
 }
 
+// v8: 8 slots/68 bytes -> v9: 32 slots/260 bytes. New slots start disabled.
+static void tag_emulation_migrate_slot_config_v8_to_v9(void) {
+    NRF_LOG_INFO("Migrating slotConfig v8 to v9...");
+    for (uint8_t i = TAG_SLOT_V8_NUM; i < TAG_MAX_SLOT_NUM; i++) {
+        slotConfig.slots[i].enabled_hf = false;
+        slotConfig.slots[i].enabled_lf = false;
+        slotConfig.slots[i].tag_hf = TAG_TYPE_UNDEFINED;
+        slotConfig.slots[i].tag_lf = TAG_TYPE_UNDEFINED;
+    }
+    slotConfig.version = TAG_SLOT_CONFIG_CURRENT_VERSION;
+}
+
 static void tag_emulation_migrate_slot_config(void) {
     switch (slotConfig.version) {
         case 0:
@@ -483,6 +495,9 @@ static void tag_emulation_migrate_slot_config(void) {
         case 6:
         case 7:
             tag_emulation_migrate_slot_config_v0_to_v8();
+            /* fall through */
+        case 8:
+            tag_emulation_migrate_slot_config_v8_to_v9();
 
             /*
              * Add new migration steps ABOVE THIS COMMENT

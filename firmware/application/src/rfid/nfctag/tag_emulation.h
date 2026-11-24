@@ -9,8 +9,11 @@
 #include "tag_base_type.h"
 #include "utils.h"
 
-// Up to eight card slots
-#define TAG_MAX_SLOT_NUM 8
+// Fixed 32 card slots (BRAVO fork, dalong-compatible v9 storage layout)
+#define TAG_MAX_SLOT_NUM 32
+// Legacy 8-slot layout (config versions <= 8), used by the v8->v9 migration
+#define TAG_SLOT_V8_NUM 8
+#define TAG_SLOT_CONFIG_V8_SIZE 68
 
 extern bool g_is_tag_emulating;
 
@@ -45,9 +48,9 @@ typedef struct {
  * This configuration can be preserved by persistently to Flash
  * 4 bytes a word, keep in mind the entire word alignment
  */
-#define TAG_SLOT_CONFIG_CURRENT_VERSION 8
-// Intended struct size, for static assert
-#define TAG_SLOT_CONFIG_CURRENT_SIZE 68
+#define TAG_SLOT_CONFIG_CURRENT_VERSION 9
+// Intended struct size, for static assert: 4-byte header + 8 bytes per slot
+#define TAG_SLOT_CONFIG_CURRENT_SIZE (4 + 8 * TAG_MAX_SLOT_NUM)
 
 typedef struct {
     // Basic configuration

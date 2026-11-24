@@ -172,6 +172,10 @@ void rgb_marquee_usb_open_symmetric(uint8_t color) {
 //dir 0-from 1 card slot to 8 card slot, 1-from 8 card slot to 1 card slot (Direction, the end point is determined by the END parameter)
 //end To scan the number of lamps, decide the final animation area with the direction
 void rgb_marquee_sweep_to(uint8_t color, uint8_t dir, uint8_t end) {
+    // BRAVO fork hook: slot-derived end can exceed the 8 physical LEDs
+    if (end > RGB_LIST_NUM - 1 && end != 11) {
+        end %= RGB_LIST_NUM;
+    }
     uint8_t startled = 0;
     uint8_t setled = 0;
     uint8_t leds2turnon = 0;
@@ -258,6 +262,9 @@ static void rgb_marquee_slot_switch_pwm_callback(nrfx_pwm_evt_type_t event_type)
     }
 }
 void rgb_marquee_slot_switch(uint8_t led_down, uint8_t color_led_down, uint8_t led_up, uint8_t color_led_up) {
+    // BRAVO fork hook: fold 32 slot indices onto the 8 physical LEDs
+    led_down %= RGB_LIST_NUM;
+    led_up %= RGB_LIST_NUM;
     int16_t light_level = 99; //ledBrightnessValue
     uint32_t *led_pins = hw_get_led_array();
     if (led_down >= 0 && led_down <= 7) {
@@ -399,6 +406,9 @@ void rgb_marquee_sweep_fade(uint8_t color, uint8_t dir, uint8_t end, uint8_t sta
 //start Start the lamp position
 //stop Stop lamp position
 void rgb_marquee_sweep_from_to(uint8_t color, uint8_t start, uint8_t stop) {
+    // BRAVO fork hook: fold 32 slot indices onto the 8 physical LEDs
+    start %= RGB_LIST_NUM;
+    stop %= RGB_LIST_NUM;
     int8_t setled = start;
     uint32_t *led_pins = hw_get_led_array();
     //Set the brightness
@@ -539,6 +549,10 @@ void rgb_marquee_usb_idle(void) {
 }
 
 void rgb_marquee_symmetric_out(uint8_t color, uint8_t slot) {
+    // BRAVO fork hook: fold 32 slot indices onto the 8 physical LEDs (0xFF stays a sentinel)
+    if (slot != 0xFF) {
+        slot %= RGB_LIST_NUM;
+    }
     uint32_t *led_pins = hw_get_led_array();
 
     //Adjust the color
@@ -599,6 +613,10 @@ void rgb_marquee_symmetric_out(uint8_t color, uint8_t slot) {
 }
 
 void rgb_marquee_symmetric_in(uint8_t color, uint8_t slot) {
+    // BRAVO fork hook: fold 32 slot indices onto the 8 physical LEDs (0xFF stays a sentinel)
+    if (slot != 0xFF) {
+        slot %= RGB_LIST_NUM;
+    }
     uint32_t *led_pins = hw_get_led_array();
 
     //Adjust the color

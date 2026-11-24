@@ -764,7 +764,7 @@ static void battery_status_display_on_button_cancel(void) {
 #if defined(PROJECT_CHAMELEON_ULTRA)
 
 static void offline_status_blink_color(uint8_t blink_color) {
-    uint8_t slot = tag_emulation_get_slot();
+    uint8_t slot = tag_emulation_get_slot() % RGB_LIST_NUM; // BRAVO fork hook: 32 slots, 8 LEDs
 
     uint8_t color = get_color_by_slot(slot);
 

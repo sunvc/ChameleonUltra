@@ -78,7 +78,8 @@ void tag_mode_enter(void) {
 void light_up_by_slot(void) {
     uint32_t *led_pins = hw_get_led_array();
     // The current lighting logic has not changed very much, so we only need to light up the specified lamp for the time being.
-    uint8_t slot = tag_emulation_get_slot();
+    // BRAVO fork hook: 32 slots share the 8 physical LEDs
+    uint8_t slot = tag_emulation_get_slot() % RGB_LIST_NUM;
     for (int i = 0; i < RGB_LIST_NUM; i++) {
         if (i == slot) {
             nrf_gpio_pin_set(led_pins[i]);
