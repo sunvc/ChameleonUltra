@@ -1,4 +1,4 @@
-// MAX fork: main-loop job orchestration for the offline Mifare Classic clone.
+// BRAVO fork: main-loop job orchestration for the offline Mifare Classic clone.
 // The blocking clone engine lives in mf1_offline_clone.c; this file only
 // handles request/tick state, reader-mode transitions and LED feedback.
 
@@ -17,17 +17,17 @@
 #include "rgb_marquee.h"
 #include "tag_emulation.h"
 
-#include "max_offline_clone_job.h"
+#include "bravo_offline_clone_job.h"
 
-#define NRF_LOG_MODULE_NAME max_clone
+#define NRF_LOG_MODULE_NAME bravo_clone
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 NRF_LOG_MODULE_REGISTER();
 
 // BLE command IDs for this fork, kept out of the upstream data_cmd.h enum.
-#define DATA_CMD_MAX_MF1_OFFLINE_CLONE        (2023)
-#define DATA_CMD_MAX_MF1_OFFLINE_CLONE_STATUS (2024)
+#define DATA_CMD_BRAVO_MF1_OFFLINE_CLONE        (2023)
+#define DATA_CMD_BRAVO_MF1_OFFLINE_CLONE_STATUS (2024)
 
 static void clone_led_indicate(uint8_t color, uint8_t times) {
     uint8_t slot = tag_emulation_get_slot();
@@ -94,15 +94,15 @@ static void clone_run_once(void) {
     }
 }
 
-void max_offline_clone_request(void) {
+void bravo_offline_clone_request(void) {
     mf1_offline_clone_job_request();
 }
 
-bool max_offline_clone_is_running(void) {
+bool bravo_offline_clone_is_running(void) {
     return mf1_offline_clone_job_state() == MF1_OFFLINE_CLONE_RUNNING;
 }
 
-void max_offline_clone_tick(void) {
+void bravo_offline_clone_tick(void) {
     if (!mf1_offline_clone_job_take_request()) {
         return;
     }
@@ -112,15 +112,15 @@ void max_offline_clone_tick(void) {
     clone_run_once();
 }
 
-data_frame_tx_t *max_cmd_offline_clone(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+data_frame_tx_t *bravo_cmd_offline_clone(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     (void)length;
     (void)data;
-    max_offline_clone_request();
+    bravo_offline_clone_request();
     return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
 }
 
-data_frame_tx_t *max_cmd_offline_clone_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+data_frame_tx_t *bravo_cmd_offline_clone_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     (void)length;
     (void)data;

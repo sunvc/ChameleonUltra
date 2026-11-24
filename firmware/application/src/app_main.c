@@ -43,9 +43,9 @@ NRF_LOG_MODULE_REGISTER();
 #include "tag_persistence.h"
 #include "settings.h"
 #if defined(PROJECT_CHAMELEON_ULTRA)
-#include "max_offline_clone_job.h" // MAX fork hook
+#include "bravo_offline_clone_job.h" // BRAVO fork hook
 #endif
-#include "max_polling.h" // MAX fork hook
+#include "bravo_polling.h" // BRAVO fork hook
 
 #if defined(PROJECT_CHAMELEON_ULTRA)
 #include "rc522.h"
@@ -304,7 +304,7 @@ static void button_init(void) {
 static void system_off_enter(void) {
     ret_code_t ret;
     m_system_off_processing = true;
-    max_polling_on_sleep(); // MAX fork hook: restore pre-poll slot
+    bravo_polling_on_sleep(); // BRAVO fork hook: restore pre-poll slot
     // Save tag data
     tag_emulation_save();
 
@@ -511,7 +511,7 @@ static void check_wakeup_src(void) {
         if (m_reset_source & NRF_POWER_RESETREAS_NFC_MASK) {
             color = 1;  // HF field show G.
             NRF_LOG_INFO("WakeUp from HF");
-            max_polling_on_field_wake(true); // MAX fork hook
+            bravo_polling_on_field_wake(true); // BRAVO fork hook
         } else {
             color = 2;  // LF filed show B.
             if (m_gpregret_val & RESET_ON_LF_FIELD_EXISTS_Msk) {
@@ -519,7 +519,7 @@ static void check_wakeup_src(void) {
             } else {
                 NRF_LOG_INFO("WakeUp from LF");
             }
-            max_polling_on_field_wake(false); // MAX fork hook
+            bravo_polling_on_field_wake(false); // BRAVO fork hook
         }
 
         // It is currently the wake-up system of the emulation card event, we can make the strong lights on the field first
@@ -1055,7 +1055,7 @@ static void run_button_function_by_settings(settings_button_function_t sbf) {
 static void button_press_process(void) {
     // Make sure that one of the AB buttons has a click event
     if (m_is_b_btn_release || m_is_a_btn_release) {
-        max_polling_on_button(); // MAX fork hook
+        bravo_polling_on_button(); // BRAVO fork hook
         if (battery_status_display_cancel_on_button()) {
             battery_status_display_on_button_cancel();
             return;
@@ -1159,7 +1159,7 @@ int main(void) {
     button_init();            // Button initialization for handling business logic
     sleep_timer_init();       // Soft timer initialization for hibernation
     tag_emulation_init();     // Analog card initialization
-    max_polling_init();       // MAX fork hook: load auto polling config
+    bravo_polling_init();       // BRAVO fork hook: load auto polling config
     rgb_marquee_init();       // Light effect initialization
 
     ble_passkey_init();       // init ble connect key.
@@ -1184,8 +1184,8 @@ int main(void) {
         button_press_process();
 
 #if defined(PROJECT_CHAMELEON_ULTRA)
-        // MAX fork hook: run pending offline clone jobs from the command interface
-        max_offline_clone_tick();
+        // BRAVO fork hook: run pending offline clone jobs from the command interface
+        bravo_offline_clone_tick();
         // Field generator rainbow animation
         if (!m_battery_status_display_active) {
             field_generator_rainbow_loop();

@@ -24,7 +24,7 @@
 #include "parity.h"
 #endif
 #include "nfc_14a.h"
-#include "max_commands.h" // MAX fork hook
+#include "bravo_commands.h" // BRAVO fork hook
 /* Forward declarations for functions added to nfc_14a.c/h in this PR.
  * These are declared here to avoid build failure if nfc_14a.h is not yet
  * updated on the build system. */
@@ -3399,7 +3399,7 @@ static cmd_data_map_t m_data_cmd_map[] = {
     /* HF14A scan keeping field alive */
     {    DATA_CMD_HF14A_SCAN_KEEP,                before_hf_reader_run,        cmd_processor_hf14a_scan_keep,               NULL                   },
 #endif
-#include "max_commands.inc" // MAX fork hook
+#include "bravo_commands.inc" // BRAVO fork hook
 };
 data_frame_tx_t *cmd_processor_get_device_capabilities(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     size_t count = ARRAYLEN(m_data_cmd_map);

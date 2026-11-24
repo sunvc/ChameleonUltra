@@ -13,7 +13,7 @@
 #include "crypto1_helper.h"
 #endif
 
-#include "max_polling.h" // MAX fork hook
+#include "bravo_polling.h" // BRAVO fork hook
 
 #define NRF_LOG_MODULE_NAME tag_mf1
 #include "nrf_log.h"
@@ -440,7 +440,7 @@ void nfc_tag_mf1_random_nonce(uint8_t nonce[4], bool isNested) {
  * @param nonce: Brightly random number
  */
 void append_mf1_auth_log_step1(bool isKeyB, bool isNested, uint8_t block, uint8_t *nonce) {
-    max_polling_note_auth_block(block); // MAX fork hook
+    bravo_polling_note_auth_block(block); // BRAVO fork hook
     // Power up for the first time, reset the buffer information
     if (m_auth_log.count == 0xFFFFFFFF) {
         m_auth_log.count = 0;
@@ -486,7 +486,7 @@ void append_mf1_auth_log_step2(uint8_t *nr, uint8_t *ar) {
  * @param is_auth_success: Whether to verify success
  */
 void append_mf1_auth_log_step3(bool is_auth_success) {
-    max_polling_note_auth_result(is_auth_success); // MAX fork hook
+    bravo_polling_note_auth_result(is_auth_success); // BRAVO fork hook
     // Determine to the upper limit and skip this operation directly to avoid covering the previous records
     if (m_auth_log.count > MF1_AUTH_LOG_MAX_SIZE) {
         return;

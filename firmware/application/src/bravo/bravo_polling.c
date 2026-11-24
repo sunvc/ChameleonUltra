@@ -1,5 +1,5 @@
-// MAX fork: dalong-compatible field-wake auto polling.
-// See docs/max-polling-spec.md for the behavior contract and which parts
+// BRAVO fork: dalong-compatible field-wake auto polling.
+// See docs/bravo-polling-spec.md for the behavior contract and which parts
 // are binary-evidenced versus inferred.
 
 #include <stdbool.h>
@@ -13,21 +13,21 @@
 #include "tag_emulation.h"
 #include "utils.h"
 
-#include "max_polling.h"
+#include "bravo_polling.h"
 
-#define NRF_LOG_MODULE_NAME max_poll
+#define NRF_LOG_MODULE_NAME bravo_poll
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 NRF_LOG_MODULE_REGISTER();
 
 // Private FDS record (the upstream id space in utils/fds_ids.h ends at 0x12xx).
-#define MAX_POLLING_FDS_FILE_ID    0x1300
-#define MAX_POLLING_FDS_RECORD_KEY 0x0001
+#define BRAVO_POLLING_FDS_FILE_ID    0x1300
+#define BRAVO_POLLING_FDS_RECORD_KEY 0x0001
 
-#define MAX_POLLING_CFG_VERSION    2
-#define MAX_POLLING_DEFAULT_DELAY  0
-#define MAX_POLLING_NO_SECTOR      0xFF
+#define BRAVO_POLLING_CFG_VERSION    2
+#define BRAVO_POLLING_DEFAULT_DELAY  0
+#define BRAVO_POLLING_NO_SECTOR      0xFF
 
 // BLE command IDs, companion-app compatible with the previous Max tree.
 #define DATA_CMD_GET_DEVICE_AUTO_POLLING       (6038)
@@ -41,9 +41,9 @@ typedef struct {
     uint8_t  slot_enable[TAG_MAX_SLOT_NUM];   // per-slot poll switch
     uint8_t  last_auth_sector[TAG_MAX_SLOT_NUM]; // smart-poll sector memory
     uint16_t delay_ms;                        // pre-switch delay at field wake
-} PACKED max_polling_config_t;
+} PACKED bravo_polling_config_t;
 
-static max_polling_config_t m_cfg;
+static bravo_polling_config_t m_cfg;
 static bool m_runtime_disabled;   // latched by a button press, RAM only
 static bool m_original_saved;
 static uint8_t m_original_slot;
@@ -51,33 +51,33 @@ static uint8_t m_pending_block;   // block from the auth attempt in flight
 
 static void cfg_set_defaults(void) {
     memset(&m_cfg, 0, sizeof(m_cfg));
-    m_cfg.version = MAX_POLLING_CFG_VERSION;
+    m_cfg.version = BRAVO_POLLING_CFG_VERSION;
     m_cfg.enabled = 0;
     for (uint8_t i = 0; i < TAG_MAX_SLOT_NUM; i++) {
         m_cfg.slot_enable[i] = 1;
-        m_cfg.last_auth_sector[i] = MAX_POLLING_NO_SECTOR;
+        m_cfg.last_auth_sector[i] = BRAVO_POLLING_NO_SECTOR;
     }
-    m_cfg.delay_ms = MAX_POLLING_DEFAULT_DELAY;
+    m_cfg.delay_ms = BRAVO_POLLING_DEFAULT_DELAY;
 }
 
 static void cfg_save(void) {
-    if (!fds_write_sync(MAX_POLLING_FDS_FILE_ID, MAX_POLLING_FDS_RECORD_KEY,
+    if (!fds_write_sync(BRAVO_POLLING_FDS_FILE_ID, BRAVO_POLLING_FDS_RECORD_KEY,
                         sizeof(m_cfg), &m_cfg)) {
         NRF_LOG_WARNING("Save auto polling config list failed.");
     }
 }
 
-void max_polling_init(void) {
+void bravo_polling_init(void) {
     cfg_set_defaults();
     m_runtime_disabled = false;
     m_original_saved = false;
 
-    max_polling_config_t stored;
+    bravo_polling_config_t stored;
     uint16_t len = sizeof(stored);
-    if (fds_read_sync(MAX_POLLING_FDS_FILE_ID, MAX_POLLING_FDS_RECORD_KEY,
+    if (fds_read_sync(BRAVO_POLLING_FDS_FILE_ID, BRAVO_POLLING_FDS_RECORD_KEY,
                       &len, (uint8_t *)&stored) &&
             len == sizeof(stored) &&
-            stored.version == MAX_POLLING_CFG_VERSION) {
+            stored.version == BRAVO_POLLING_CFG_VERSION) {
         m_cfg = stored;
     }
     m_runtime_disabled = false;
@@ -87,17 +87,17 @@ void max_polling_init(void) {
 
 // Smart-poll filter: any slot with a remembered non-zero auth sector turns
 // on sector filtering for the next wake. Returns the filter sector, or
-// MAX_POLLING_NO_SECTOR when plain round-robin applies.
+// BRAVO_POLLING_NO_SECTOR when plain round-robin applies.
 static uint8_t smart_filter_sector(void) {
-    uint8_t sector = MAX_POLLING_NO_SECTOR;
+    uint8_t sector = BRAVO_POLLING_NO_SECTOR;
     for (uint8_t i = 0; i < TAG_MAX_SLOT_NUM; i++) {
-        if (m_cfg.last_auth_sector[i] != MAX_POLLING_NO_SECTOR &&
+        if (m_cfg.last_auth_sector[i] != BRAVO_POLLING_NO_SECTOR &&
                 m_cfg.last_auth_sector[i] != 0) {
-            if (sector == MAX_POLLING_NO_SECTOR) {
+            if (sector == BRAVO_POLLING_NO_SECTOR) {
                 sector = m_cfg.last_auth_sector[i];
             } else if (sector != m_cfg.last_auth_sector[i]) {
                 // Conflicting sector memory: filtering would be ambiguous.
-                return MAX_POLLING_NO_SECTOR;
+                return BRAVO_POLLING_NO_SECTOR;
             }
         }
     }
@@ -111,7 +111,7 @@ static uint8_t smart_filter_sector(void) {
 static uint8_t find_next_slot(tag_sense_type_t sense) {
     uint8_t active = tag_emulation_get_slot();
     uint8_t filter = smart_filter_sector();
-    bool use_filter = filter != MAX_POLLING_NO_SECTOR;
+    bool use_filter = filter != BRAVO_POLLING_NO_SECTOR;
 
     if (use_filter) {
         NRF_LOG_INFO("Smart poll enabled, filtering by sector %d", filter);
@@ -135,12 +135,12 @@ static uint8_t find_next_slot(tag_sense_type_t sense) {
     return TAG_MAX_SLOT_NUM;
 }
 
-void max_polling_note_auth_block(uint8_t block) {
+void bravo_polling_note_auth_block(uint8_t block) {
     // MF1 blocks map four per sector; trailer blocks are inside their sector.
     m_pending_block = block;
 }
 
-void max_polling_note_auth_result(bool success) {
+void bravo_polling_note_auth_result(bool success) {
     if (!success) {
         return;
     }
@@ -155,7 +155,7 @@ void max_polling_note_auth_result(bool success) {
     }
 }
 
-void max_polling_on_field_wake(bool hf) {
+void bravo_polling_on_field_wake(bool hf) {
     if (!m_cfg.enabled || m_runtime_disabled) {
         NRF_LOG_DEBUG("Smart poll: auto_polling not enabled in settings");
         return;
@@ -186,14 +186,14 @@ void max_polling_on_field_wake(bool hf) {
     NRF_LOG_INFO("Auto polling switched to slot %d", next);
 }
 
-void max_polling_on_button(void) {
+void bravo_polling_on_button(void) {
     if (m_cfg.enabled && !m_runtime_disabled) {
         m_runtime_disabled = true;
         NRF_LOG_INFO("Auto polling disabled by button press");
     }
 }
 
-void max_polling_on_sleep(void) {
+void bravo_polling_on_sleep(void) {
     if (m_original_saved) {
         NRF_LOG_INFO("Auto polling: restoring original slot %d", m_original_slot);
         tag_emulation_change_slot(m_original_slot, false);
@@ -201,7 +201,7 @@ void max_polling_on_sleep(void) {
     }
 }
 
-data_frame_tx_t *max_cmd_get_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+data_frame_tx_t *bravo_cmd_get_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     (void)length;
     (void)data;
@@ -209,7 +209,7 @@ data_frame_tx_t *max_cmd_get_auto_polling(uint16_t cmd, uint16_t status, uint16_
     return data_frame_make(cmd, STATUS_SUCCESS, sizeof(payload), &payload);
 }
 
-data_frame_tx_t *max_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+data_frame_tx_t *bravo_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     if (length != 1) {
         return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
@@ -222,7 +222,7 @@ data_frame_tx_t *max_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint16_
     return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
 }
 
-data_frame_tx_t *max_cmd_get_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+data_frame_tx_t *bravo_cmd_get_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     (void)length;
     (void)data;
@@ -232,7 +232,7 @@ data_frame_tx_t *max_cmd_get_auto_polling_delay(uint16_t cmd, uint16_t status, u
     return data_frame_make(cmd, STATUS_SUCCESS, sizeof(payload), payload);
 }
 
-data_frame_tx_t *max_cmd_set_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+data_frame_tx_t *bravo_cmd_set_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     if (length != 2) {
         return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);

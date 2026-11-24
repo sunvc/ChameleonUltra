@@ -1,4 +1,4 @@
-# MAX fork polling — behavior spec (dalong-compatible)
+# BRAVO fork polling — behavior spec (dalong-compatible)
 
 Source: firmware `v6.0-69-g053ccab-dirty` (nRF52 application, build id string
 `v2.2.0-33-dalong`). Static evidence only — no runtime capture. Items marked

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the MAX fork application, package a signed DFU zip and flash it.
+# Build the BRAVO fork application, package a signed DFU zip and flash it.
 # Toolchain/nrfutil paths are overridable through environment variables.
 set -euo pipefail
 
@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_DIR="$ROOT/firmware/application"
 TOOLCHAIN="${GNU_INSTALL_ROOT:-/Users/lynn/armgnu/expanded/Payload/bin/}"
 GNU_VERSION="${GNU_VERSION:-15.3.1}"
-OUTPUT="${1:-$ROOT/build/max-custom.zip}"
+OUTPUT="${1:-$ROOT/build/bravo-custom.zip}"
 PYTHON="${PYTHON:-python3}"
 
 command -v nrfutil >/dev/null 2>&1 || { echo "nrfutil not found in PATH"; exit 1; }
@@ -15,6 +15,8 @@ command -v nrfutil >/dev/null 2>&1 || { echo "nrfutil not found in PATH"; exit 1
 
 echo "==> build"
 cd "$APP_DIR"
+# Clean first: the Makefile does not track CURRENT_DEVICE_TYPE flag changes.
+make clean >/dev/null 2>&1 || true
 make -j8 GNU_INSTALL_ROOT="$TOOLCHAIN" GNU_VERSION="$GNU_VERSION" CURRENT_DEVICE_TYPE=ultra
 
 echo "==> package $OUTPUT"
