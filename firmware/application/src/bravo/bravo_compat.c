@@ -332,6 +332,12 @@ data_frame_tx_t *bravo_cmd_fence_anticoll(uint16_t cmd, uint16_t status, uint16_
     return rewrap(cmd, app_cmd_execute(4001, status, length, data));
 }
 
+// 6067: fence MF1 block write. Payload matches upstream 4000
+// ([block_index][16-byte blocks...]), so reuse that handler.
+data_frame_tx_t *bravo_cmd_fence_block_write(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    return rewrap(cmd, app_cmd_execute(4000, status, length, data));
+}
+
 data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
     // The companion app probes fence support with a zero-length 6069 and

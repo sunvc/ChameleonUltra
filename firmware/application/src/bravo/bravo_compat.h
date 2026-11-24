@@ -44,5 +44,6 @@ data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uin
 data_frame_tx_t *bravo_cmd_ack(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_set_fence_card(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_fence_anticoll(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *bravo_cmd_fence_block_write(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 
 #endif
