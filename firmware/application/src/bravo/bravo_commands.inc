@@ -30,6 +30,7 @@
 {    6068, NULL, bravo_cmd_set_fence_active_slot, NULL },
 {    6069, NULL, bravo_cmd_check_fence_status,     NULL },
 {    6073, NULL, bravo_cmd_ack,                    NULL },
+{    6071, NULL, bravo_cmd_ack,                    NULL },
 {    6072, NULL, bravo_cmd_set_fence_card,        NULL },
 {    6074, NULL, bravo_cmd_ack,                    NULL },
 {    6076, NULL, bravo_cmd_get_ble_name,      NULL },
