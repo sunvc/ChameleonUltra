@@ -27,7 +27,7 @@ NRF_LOG_MODULE_REGISTER();
 
 #define BRAVO_POLLING_CFG_VERSION    4
 #define BRAVO_POLLING_CFG_V2_SIZE    20  // 1+1+8+8+2, 8-slot layout
-#define BRAVO_POLLING_CFG_V3_SIZE    68  // 32-slot layout without IC/ID gates
+#define BRAVO_POLLING_CFG_V3_SIZE    72  // v3 record: 68 payload bytes + 4 FDS padding
 #define BRAVO_POLLING_DEFAULT_DELAY  0
 #define BRAVO_POLLING_NO_SECTOR      0xFF
 
@@ -45,12 +45,14 @@ typedef struct {
     uint16_t delay_ms;                        // pre-switch delay at field wake
     uint8_t  ic_polling;                      // HF (IC) field-wake gate, cmd 6046/6047
     uint8_t  id_polling;                      // LF (ID) field-wake gate, cmd 6048/6049
+    // FDS stores whole words; pad so the struct equals the flash record length
+    uint8_t  reserved[2];
 } PACKED bravo_polling_config_t;
 
 // Migration depends on these exact layouts
-STATIC_ASSERT(sizeof(bravo_polling_config_t) == 70);
+STATIC_ASSERT(sizeof(bravo_polling_config_t) == 72);
 STATIC_ASSERT(BRAVO_POLLING_CFG_V2_SIZE == 20);
-STATIC_ASSERT(BRAVO_POLLING_CFG_V3_SIZE == 68);
+STATIC_ASSERT(BRAVO_POLLING_CFG_V3_SIZE == 72);
 
 static bravo_polling_config_t m_cfg;
 static bool m_runtime_disabled;   // latched by a button press, RAM only
@@ -94,8 +96,9 @@ void bravo_polling_init(void) {
             len == sizeof(stored)) {
         m_cfg = stored;
     } else if (len == BRAVO_POLLING_CFG_V3_SIZE) {
-        // v3: identical layout minus the two IC/ID gate bytes at the end
-        memcpy(&m_cfg, &stored, BRAVO_POLLING_CFG_V3_SIZE);
+        // v3 record: 68 payload bytes plus 4 FDS padding words. Copy only
+        // the payload; the two IC/ID gates did not exist in v3.
+        memcpy(&m_cfg, &stored, 68);
         m_cfg.version = BRAVO_POLLING_CFG_VERSION;
         m_cfg.ic_polling = 1;
         m_cfg.id_polling = 1;

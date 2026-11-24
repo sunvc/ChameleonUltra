@@ -62,7 +62,12 @@ typedef struct {
     uint8_t secret[BRAVO_KEY_LEN];
     uint8_t fence_key[BRAVO_KEY_LEN];
     uint8_t ble_name[BRAVO_BLE_NAME_LEN + 1];
+    // FDS stores whole words; pad so the struct equals the flash record length
+    uint8_t reserved[2];
 } PACKED bravo_compat_config_t;
+
+STATIC_ASSERT(sizeof(bravo_compat_config_t) % 4 == 0);
+STATIC_ASSERT(sizeof(bravo_compat_config_t) == 180);
 
 static bravo_compat_config_t m_cfg;
 
