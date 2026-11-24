@@ -59,6 +59,16 @@ Single-line BRAVO hook points (the merge-sensitive surface for features):
 | 2023 / 2024 | Offline clone request / status (Ultra build only) |
 | 6038 / 6039 | Auto polling get/set |
 | 6040 / 6041 | Auto polling switch delay get/set |
+| 6042-6045 | License/secret/trial storage, no gating (trial always unlimited) |
+| 6046-6049 | IC (HF) / ID (LF) field-wake polling gates |
+| 6050-6053 | Custom git, sleep time, fence key |
+| 6060 / 6061 | Permanent awake get/set |
+| 6062 / 6063 | Smart-poll sector filter get/set |
+| 6068 | Fence forwarder: 3-byte `[slot, subcmd BE16]`, runs subcmd in that slot |
+| 6069 | Fence status: 2-byte `[subcmd BE16]`, runs subcmd on the active slot |
+| 6076 / 6077 | BLE GAP name get/set |
+| 1763 / 6001 | 32-byte slot poll list (6001 intercepted before upstream table) |
+| 8001 | Alias of the MF1 block write for 32-slot builds |
 
 ## Deliberately not ported
 

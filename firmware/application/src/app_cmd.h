@@ -16,4 +16,8 @@ typedef struct {
 
 void on_data_frame_received(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 
+// BRAVO fork hook: dispatch a command and return its response frame directly
+// (no transport send), for the dalong fence forwarder commands 6068/6069.
+data_frame_tx_t *app_cmd_execute(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+
 #endif

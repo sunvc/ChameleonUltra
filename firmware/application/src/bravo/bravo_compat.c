@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "app_status.h"
+#include "app_cmd.h"
 #include "ble.h"
 #include "ble_gap.h"
 #include "dataframe.h"
@@ -64,7 +65,7 @@ typedef struct {
     uint8_t secret[BRAVO_KEY_LEN];
     uint8_t fence_key[BRAVO_KEY_LEN];
     uint8_t ble_name[BRAVO_BLE_NAME_LEN + 1];
-    // FDS alignment padding; reserved[0] stores the fence active slot (6068)
+    // FDS alignment padding, reserved for future use
     uint8_t reserved[2];
 } PACKED bravo_compat_config_t;
 
@@ -268,35 +269,44 @@ data_frame_tx_t *bravo_cmd_get_slot_poll_list(uint16_t cmd, uint16_t status, uin
     return data_frame_make(cmd, STATUS_SUCCESS, sizeof(list), list);
 }
 
+// Re-wrap an inner command response under an outer fence command id.
+// Inner frame fields are big-endian per the Proxgrind frame spec.
+static data_frame_tx_t *rewrap(uint16_t outer_cmd, data_frame_tx_t *sub) {
+    if (sub == NULL) {
+        return data_frame_make(outer_cmd, STATUS_CMD_ERR, 0, NULL);
+    }
+    uint16_t inner_status = (uint16_t)(((uint16_t)sub->buffer[4] << 8) | sub->buffer[5]);
+    uint16_t payload_len = (uint16_t)(((uint16_t)sub->buffer[6] << 8) | sub->buffer[7]);
+    return data_frame_make(outer_cmd, inner_status, payload_len, &sub->buffer[9]);
+}
+
 data_frame_tx_t *bravo_cmd_set_fence_active_slot(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     (void)status;
-    // Accept 1-byte or big-endian 2-byte slot payloads, clamp to the valid range.
-    uint8_t slot;
-    if (length == 1) {
-        slot = data[0];
-    } else if (length == 2) {
-        slot = (uint8_t)(((uint16_t)data[0] << 8) | data[1]);
-    } else {
+    // dalong semantics (from reverse engineering): 3-byte payload
+    // [slot, subcmd BE16]. Switch to the slot, execute the wrapped command
+    // in that slot context, restore the original slot, and return its frame.
+    if (length != 3 || data[0] >= TAG_MAX_SLOT_NUM) {
         return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
     }
-    if (slot >= TAG_MAX_SLOT_NUM) {
-        slot = TAG_MAX_SLOT_NUM - 1;
-    }
-    m_cfg.reserved[0] = slot;
-    cfg_save();
-    return ok_empty(cmd);
+    uint16_t subcmd = (uint16_t)(((uint16_t)data[1] << 8) | data[2]);
+
+    uint8_t original = tag_emulation_get_slot();
+    tag_emulation_set_slot(data[0]);
+    data_frame_tx_t *sub = app_cmd_execute(subcmd, 0, 0, NULL);
+    tag_emulation_set_slot(original);
+
+    return rewrap(cmd, sub);
 }
 
 data_frame_tx_t *bravo_cmd_check_fence_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
-    (void)status; (void)data;
-    // dalong rejects anything but a 2-byte payload with PAR_ERR; keep that shape.
-    // No restriction is enforced here: always report the fence as valid (1) and
-    // echo the configured active slot as the second byte.
+    (void)status;
+    // dalong semantics: 2-byte payload [subcmd BE16], executed against the
+    // current active slot without switching. Rejects other lengths.
     if (length != 2) {
         return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
     }
-    uint8_t payload[2] = {1, m_cfg.reserved[0]};
-    return data_frame_make(cmd, STATUS_SUCCESS, sizeof(payload), payload);
+    uint16_t subcmd = (uint16_t)(((uint16_t)data[0] << 8) | data[1]);
+    return rewrap(cmd, app_cmd_execute(subcmd, 0, 0, NULL));
 }
 
 data_frame_tx_t *bravo_compat_intercept(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {

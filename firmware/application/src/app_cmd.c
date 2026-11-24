@@ -3434,6 +3434,34 @@ static void auto_response_data(data_frame_tx_t *resp) {
 
 /**@brief Function to process data frame(cmd)
  */
+// BRAVO fork hook: run a command through the dispatch table and return the
+// response frame without sending it. Used by the dalong fence forwarder
+// (cmds 6068/6069), which wraps another command inside its own frame.
+data_frame_tx_t *app_cmd_execute(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    for (int i = 0; i < ARRAY_SIZE(m_data_cmd_map); i++) {
+        if (m_data_cmd_map[i].cmd == cmd) {
+            if (m_data_cmd_map[i].cmd_before != NULL) {
+                data_frame_tx_t *before_resp = m_data_cmd_map[i].cmd_before(cmd, status, length, data);
+                if (before_resp != NULL) {
+                    return before_resp;
+                }
+            }
+            data_frame_tx_t *response = NULL;
+            if (m_data_cmd_map[i].cmd_processor != NULL) {
+                response = m_data_cmd_map[i].cmd_processor(cmd, status, length, data);
+            }
+            if (m_data_cmd_map[i].cmd_after != NULL) {
+                data_frame_tx_t *after_resp = m_data_cmd_map[i].cmd_after(cmd, status, length, data);
+                if (after_resp != NULL) {
+                    return after_resp;
+                }
+            }
+            return response;
+        }
+    }
+    return data_frame_make(cmd, STATUS_INVALID_CMD, 0, NULL);
+}
+
 void on_data_frame_received(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
     data_frame_tx_t *response = NULL;
     bool is_cmd_support = false;
