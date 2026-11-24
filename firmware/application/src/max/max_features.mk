@@ -7,3 +7,10 @@ SRC_FILES += \
 
 INC_FOLDERS += \
   $(PROJ_DIR)/max \
+
+# Reader-dependent features exist only on the Ultra build.
+ifeq (${CURRENT_DEVICE_TYPE}, ${CHAMELEON_ULTRA})
+SRC_FILES += \
+  $(PROJ_DIR)/max/mf1_offline_clone.c \
+  $(PROJ_DIR)/max/max_offline_clone_job.c
+endif

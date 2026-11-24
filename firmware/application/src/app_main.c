@@ -42,6 +42,9 @@ NRF_LOG_MODULE_REGISTER();
 #include "rgb_marquee.h"
 #include "tag_persistence.h"
 #include "settings.h"
+#if defined(PROJECT_CHAMELEON_ULTRA)
+#include "max_offline_clone_job.h" // MAX fork hook
+#endif
 
 #if defined(PROJECT_CHAMELEON_ULTRA)
 #include "rc522.h"
@@ -1175,6 +1178,8 @@ int main(void) {
         button_press_process();
 
 #if defined(PROJECT_CHAMELEON_ULTRA)
+        // MAX fork hook: run pending offline clone jobs from the command interface
+        max_offline_clone_tick();
         // Field generator rainbow animation
         if (!m_battery_status_display_active) {
             field_generator_rainbow_loop();
