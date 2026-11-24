@@ -4,3 +4,7 @@
 {    DATA_CMD_MAX_MF1_OFFLINE_CLONE,        NULL, max_cmd_offline_clone,        NULL },
 {    DATA_CMD_MAX_MF1_OFFLINE_CLONE_STATUS, NULL, max_cmd_offline_clone_status, NULL },
 #endif
+{    6038, NULL, max_cmd_get_auto_polling,       NULL },
+{    6039, NULL, max_cmd_set_auto_polling,       NULL },
+{    6040, NULL, max_cmd_get_auto_polling_delay, NULL },
+{    6041, NULL, max_cmd_set_auto_polling_delay, NULL },

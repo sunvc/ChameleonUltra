@@ -4,6 +4,7 @@
 
 SRC_FILES += \
   $(PROJ_DIR)/max/max_ble_guard.c \
+  $(PROJ_DIR)/max/max_polling.c \
 
 INC_FOLDERS += \
   $(PROJ_DIR)/max \

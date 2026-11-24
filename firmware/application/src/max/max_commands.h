@@ -15,4 +15,10 @@ data_frame_tx_t *max_cmd_offline_clone(uint16_t cmd, uint16_t status, uint16_t l
 data_frame_tx_t *max_cmd_offline_clone_status(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 #endif
 
+// Field-wake auto polling (6038-6041, companion-app compatible IDs).
+data_frame_tx_t *max_cmd_get_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *max_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *max_cmd_get_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *max_cmd_set_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+
 #endif
