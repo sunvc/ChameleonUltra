@@ -25,8 +25,9 @@ NRF_LOG_MODULE_REGISTER();
 #define MAX_POLLING_FDS_FILE_ID    0x1300
 #define MAX_POLLING_FDS_RECORD_KEY 0x0001
 
-#define MAX_POLLING_CFG_VERSION    1
+#define MAX_POLLING_CFG_VERSION    2
 #define MAX_POLLING_DEFAULT_DELAY  0
+#define MAX_POLLING_NO_SECTOR      0xFF
 
 // BLE command IDs, companion-app compatible with the previous Max tree.
 #define DATA_CMD_GET_DEVICE_AUTO_POLLING       (6038)
@@ -38,6 +39,7 @@ typedef struct {
     uint8_t  version;
     uint8_t  enabled;                         // global auto polling switch
     uint8_t  slot_enable[TAG_MAX_SLOT_NUM];   // per-slot poll switch
+    uint8_t  last_auth_sector[TAG_MAX_SLOT_NUM]; // smart-poll sector memory
     uint16_t delay_ms;                        // pre-switch delay at field wake
 } PACKED max_polling_config_t;
 
@@ -45,6 +47,7 @@ static max_polling_config_t m_cfg;
 static bool m_runtime_disabled;   // latched by a button press, RAM only
 static bool m_original_saved;
 static uint8_t m_original_slot;
+static uint8_t m_pending_block;   // block from the auth attempt in flight
 
 static void cfg_set_defaults(void) {
     memset(&m_cfg, 0, sizeof(m_cfg));
@@ -52,6 +55,7 @@ static void cfg_set_defaults(void) {
     m_cfg.enabled = 0;
     for (uint8_t i = 0; i < TAG_MAX_SLOT_NUM; i++) {
         m_cfg.slot_enable[i] = 1;
+        m_cfg.last_auth_sector[i] = MAX_POLLING_NO_SECTOR;
     }
     m_cfg.delay_ms = MAX_POLLING_DEFAULT_DELAY;
 }
@@ -76,12 +80,52 @@ void max_polling_init(void) {
             stored.version == MAX_POLLING_CFG_VERSION) {
         m_cfg = stored;
     }
+    m_runtime_disabled = false;
+    m_original_saved = false;
+    m_pending_block = 0;
+}
+
+// Smart-poll filter: any slot with a remembered non-zero auth sector turns
+// on sector filtering for the next wake. Returns the filter sector, or
+// MAX_POLLING_NO_SECTOR when plain round-robin applies.
+static uint8_t smart_filter_sector(void) {
+    uint8_t sector = MAX_POLLING_NO_SECTOR;
+    for (uint8_t i = 0; i < TAG_MAX_SLOT_NUM; i++) {
+        if (m_cfg.last_auth_sector[i] != MAX_POLLING_NO_SECTOR &&
+                m_cfg.last_auth_sector[i] != 0) {
+            if (sector == MAX_POLLING_NO_SECTOR) {
+                sector = m_cfg.last_auth_sector[i];
+            } else if (sector != m_cfg.last_auth_sector[i]) {
+                // Conflicting sector memory: filtering would be ambiguous.
+                return MAX_POLLING_NO_SECTOR;
+            }
+        }
+    }
+    return sector;
 }
 
 // Find the next pollable slot for the given sense type, round-robin after
-// the active slot. Returns TAG_MAX_SLOT_NUM when no candidate exists.
+// the active slot. When sector filtering is active, slots remembering the
+// reader's last auth sector take priority. Returns TAG_MAX_SLOT_NUM when no
+// candidate exists.
 static uint8_t find_next_slot(tag_sense_type_t sense) {
     uint8_t active = tag_emulation_get_slot();
+    uint8_t filter = smart_filter_sector();
+    bool use_filter = filter != MAX_POLLING_NO_SECTOR;
+
+    if (use_filter) {
+        NRF_LOG_INFO("Smart poll enabled, filtering by sector %d", filter);
+        for (uint8_t step = 1; step <= TAG_MAX_SLOT_NUM; step++) {
+            uint8_t candidate = (uint8_t)((active + step) % TAG_MAX_SLOT_NUM);
+            if (m_cfg.slot_enable[candidate] && is_slot_enabled(candidate, sense) &&
+                    m_cfg.last_auth_sector[candidate] == filter) {
+                return candidate;
+            }
+        }
+        NRF_LOG_INFO("Smart poll: no valid next slot found");
+        // Filter miss falls through to plain round-robin.
+    }
+
     for (uint8_t step = 1; step <= TAG_MAX_SLOT_NUM; step++) {
         uint8_t candidate = (uint8_t)((active + step) % TAG_MAX_SLOT_NUM);
         if (m_cfg.slot_enable[candidate] && is_slot_enabled(candidate, sense)) {
@@ -89,6 +133,26 @@ static uint8_t find_next_slot(tag_sense_type_t sense) {
         }
     }
     return TAG_MAX_SLOT_NUM;
+}
+
+void max_polling_note_auth_block(uint8_t block) {
+    // MF1 blocks map four per sector; trailer blocks are inside their sector.
+    m_pending_block = block;
+}
+
+void max_polling_note_auth_result(bool success) {
+    if (!success) {
+        return;
+    }
+    uint8_t slot = tag_emulation_get_slot();
+    uint8_t sector = m_pending_block / 4;
+    if (m_cfg.last_auth_sector[slot] != sector) {
+        m_cfg.last_auth_sector[slot] = sector;
+        cfg_save();
+    }
+    if (sector != 0) {
+        NRF_LOG_INFO("Non-zero sector auth success, adaptive polling continues");
+    }
 }
 
 void max_polling_on_field_wake(bool hf) {

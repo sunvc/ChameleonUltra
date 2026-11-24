@@ -18,6 +18,10 @@ void max_polling_on_field_wake(bool hf);
 void max_polling_on_button(void);
 void max_polling_on_sleep(void);
 
+// MF1 auth-event hooks for smart poll (called from nfc_mf1.c).
+void max_polling_note_auth_block(uint8_t block);
+void max_polling_note_auth_result(bool success);
+
 // BLE command processors (cmds 6038-6041).
 data_frame_tx_t *max_cmd_get_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *max_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);

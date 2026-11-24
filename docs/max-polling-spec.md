@@ -68,8 +68,20 @@ Trial gate (NOT ported — paywall, not a polling behavior):
 | 6040 GET_DEVICE_AUTO_POLLING_DELAY | dev->app | u16 ms (big endian) |
 | 6041 SET_DEVICE_AUTO_POLLING_DELAY | app->dev | u16 ms (big endian) |
 
-### Not in this slice
+### Smart poll (Mifare Classic sector filtering)
 
-Smart poll sector filtering (the `Smart poll:` group). It needs an MF1 auth
-event hook and per-slot `last_auth_sector`/`use_filter` state; tracked as the
-next slice.
+Implemented on top of the upstream MF1 auth log pipeline:
+
+- `append_mf1_auth_log_step1` hook records the block of the in-flight auth;
+  `append_mf1_auth_log_step3(success)` commits `block / 4` as the slot's
+  `last_auth_sector` (persisted in the polling FDS record). Non-zero sector
+  successes log `Non-zero sector auth success, adaptive polling continues`.
+- On the next field wake, if slot sector memory converges on one non-zero
+  sector, candidate selection is filtered to matching slots
+  (`Smart poll enabled, filtering by sector %d`). No filtered candidate
+  falls back to plain round-robin (`Smart poll: no valid next slot found`).
+- **inferred**: dalong's exact filter state machine (`invalid`,
+  `use_filter`, `m_is_event_based_polling`) is not visible in strings beyond
+  their names; the convergence rule above is a reconstruction, not observed
+  behavior. Config struct is versioned (v2) so a future correction migrates
+  cleanly.
