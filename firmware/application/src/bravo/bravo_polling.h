@@ -28,11 +28,16 @@ void bravo_polling_get_slot_list(uint8_t *out);
 bool bravo_polling_set_slot_list(const uint8_t *in, uint16_t length);
 bool bravo_polling_get_sense_gate(bool hf);
 void bravo_polling_set_sense_gate(bool hf, bool enable);
+// Smart-poll sector filter switch (cmds 6062/6063)
+bool bravo_polling_get_smart(void);
+void bravo_polling_set_smart(bool enable);
 
 // BLE command processors (cmds 6038-6041).
 data_frame_tx_t *bravo_cmd_get_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_get_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_set_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *bravo_cmd_get_smart_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *bravo_cmd_set_smart_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 
 #endif

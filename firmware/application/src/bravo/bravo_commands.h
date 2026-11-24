@@ -21,4 +21,8 @@ data_frame_tx_t *bravo_cmd_set_auto_polling(uint16_t cmd, uint16_t status, uint1
 data_frame_tx_t *bravo_cmd_get_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 data_frame_tx_t *bravo_cmd_set_auto_polling_delay(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
 
+// Smart polling (6062/6063), implemented in bravo_polling.c
+data_frame_tx_t *bravo_cmd_get_smart_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+data_frame_tx_t *bravo_cmd_set_smart_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data);
+
 #endif

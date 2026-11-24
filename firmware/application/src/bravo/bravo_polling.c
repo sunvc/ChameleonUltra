@@ -25,10 +25,11 @@ NRF_LOG_MODULE_REGISTER();
 #define BRAVO_POLLING_FDS_FILE_ID    0x1300
 #define BRAVO_POLLING_FDS_RECORD_KEY 0x0001
 
-#define BRAVO_POLLING_CFG_VERSION    4
+#define BRAVO_POLLING_CFG_VERSION    5
 #define BRAVO_POLLING_CFG_V2_SIZE    20  // 1+1+8+8+2, 8-slot layout
 #define BRAVO_POLLING_CFG_V3_SIZE    72  // v3 record: 68 payload bytes + 4 FDS padding
-#define BRAVO_POLLING_DEFAULT_DELAY  0
+#define BRAVO_POLLING_CFG_V4_SIZE    72  // same word size; v4 left padding bytes zero
+#define BRAVO_POLLING_DEFAULT_DELAY  350
 #define BRAVO_POLLING_NO_SECTOR      0xFF
 
 // BLE command IDs, companion-app compatible with the previous Max tree.
@@ -45,7 +46,7 @@ typedef struct {
     uint16_t delay_ms;                        // pre-switch delay at field wake
     uint8_t  ic_polling;                      // HF (IC) field-wake gate, cmd 6046/6047
     uint8_t  id_polling;                      // LF (ID) field-wake gate, cmd 6048/6049
-    // FDS stores whole words; pad so the struct equals the flash record length
+    // FDS stores whole words; reserved[0] is the smart-poll filter switch (6062/6063)
     uint8_t  reserved[2];
 } PACKED bravo_polling_config_t;
 
@@ -53,6 +54,7 @@ typedef struct {
 STATIC_ASSERT(sizeof(bravo_polling_config_t) == 72);
 STATIC_ASSERT(BRAVO_POLLING_CFG_V2_SIZE == 20);
 STATIC_ASSERT(BRAVO_POLLING_CFG_V3_SIZE == 72);
+STATIC_ASSERT(BRAVO_POLLING_CFG_V4_SIZE == 72);
 
 static bravo_polling_config_t m_cfg;
 static bool m_runtime_disabled;   // latched by a button press, RAM only
@@ -71,6 +73,7 @@ static void cfg_set_defaults(void) {
     m_cfg.delay_ms = BRAVO_POLLING_DEFAULT_DELAY;
     m_cfg.ic_polling = 1;
     m_cfg.id_polling = 1;
+    m_cfg.reserved[0] = 1;  // smart polling on by default
 }
 
 static void cfg_save(void) {
@@ -95,21 +98,29 @@ void bravo_polling_init(void) {
             stored.version == BRAVO_POLLING_CFG_VERSION &&
             len == sizeof(stored)) {
         m_cfg = stored;
-    } else if (len == BRAVO_POLLING_CFG_V3_SIZE) {
-        // v3 record: 68 payload bytes plus 4 FDS padding words. Copy only
-        // the payload; the two IC/ID gates did not exist in v3.
+    } else if (len == BRAVO_POLLING_CFG_V3_SIZE &&
+               (stored.version == 3 || stored.version == 4)) {
+        // Same word size; v3 lacks IC/ID gates, v4 has them but the smart
+        // poll switch byte was still padding. Copy the shared layout and
+        // fill the new fields.
         memcpy(&m_cfg, &stored, 68);
         m_cfg.version = BRAVO_POLLING_CFG_VERSION;
-        m_cfg.ic_polling = 1;
-        m_cfg.id_polling = 1;
-        NRF_LOG_INFO("Auto polling config migrated v3 -> v4");
+        if (stored.version == 3) {
+            m_cfg.ic_polling = 1;
+            m_cfg.id_polling = 1;
+        } else {
+            m_cfg.ic_polling = stored.ic_polling;
+            m_cfg.id_polling = stored.id_polling;
+        }
+        m_cfg.reserved[0] = 1;  // keep prior filtering behavior
+        NRF_LOG_INFO("Auto polling config migrated v%d -> v5", stored.version);
     } else if (len == BRAVO_POLLING_CFG_V2_SIZE) {
         uint8_t *old = (uint8_t *)&stored;
         m_cfg.enabled = old[1];
         memcpy(m_cfg.slot_enable, &old[2], 8);
         memcpy(m_cfg.last_auth_sector, &old[2 + 8], 8);
         m_cfg.delay_ms = (uint16_t)((old[18] << 8) | old[19]);
-        NRF_LOG_INFO("Auto polling config migrated v2 -> v4");
+        NRF_LOG_INFO("Auto polling config migrated v2 -> v5");
     }
 }
 
@@ -138,7 +149,9 @@ static uint8_t smart_filter_sector(void) {
 // candidate exists.
 static uint8_t find_next_slot(tag_sense_type_t sense) {
     uint8_t active = tag_emulation_get_slot();
-    uint8_t filter = smart_filter_sector();
+    // Smart-poll sector filtering only when the 6062/6063 switch is on
+    uint8_t filter = m_cfg.reserved[0] ? smart_filter_sector()
+                                       : BRAVO_POLLING_NO_SECTOR;
     bool use_filter = filter != BRAVO_POLLING_NO_SECTOR;
 
     if (use_filter) {
@@ -302,4 +315,28 @@ void bravo_polling_set_sense_gate(bool hf, bool enable) {
         m_cfg.id_polling = enable ? 1 : 0;
     }
     cfg_save();
+}
+
+bool bravo_polling_get_smart(void) {
+    return m_cfg.reserved[0] != 0;
+}
+
+void bravo_polling_set_smart(bool enable) {
+    m_cfg.reserved[0] = enable ? 1 : 0;
+    cfg_save();
+}
+
+data_frame_tx_t *bravo_cmd_get_smart_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    (void)status; (void)length; (void)data;
+    uint8_t v = bravo_polling_get_smart() ? 1 : 0;
+    return data_frame_make(cmd, STATUS_SUCCESS, 1, &v);
+}
+
+data_frame_tx_t *bravo_cmd_set_smart_polling(uint16_t cmd, uint16_t status, uint16_t length, uint8_t *data) {
+    (void)status;
+    if (length != 1) {
+        return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
+    }
+    bravo_polling_set_smart(data[0] != 0);
+    return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
 }
