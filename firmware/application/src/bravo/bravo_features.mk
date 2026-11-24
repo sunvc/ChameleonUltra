@@ -6,6 +6,7 @@ SRC_FILES += \
   $(PROJ_DIR)/bravo/bravo_ble_guard.c \
   $(PROJ_DIR)/bravo/bravo_polling.c \
   $(PROJ_DIR)/bravo/bravo_compat.c \
+  $(PROJ_DIR)/bravo/bravo_capture.c \
 
 INC_FOLDERS += \
   $(PROJ_DIR)/bravo \

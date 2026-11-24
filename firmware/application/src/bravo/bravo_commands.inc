@@ -32,3 +32,6 @@
 {    6076, NULL, bravo_cmd_get_ble_name,      NULL },
 {    6077, NULL, bravo_cmd_set_ble_name,      NULL },
 {    1763, NULL, bravo_cmd_get_slot_poll_list, NULL },
+// BRAVO protocol capture (RAM ring buffer, for app protocol analysis)
+{    6090, NULL, bravo_cmd_get_capture,   NULL },
+{    6091, NULL, bravo_cmd_clear_capture, NULL },
