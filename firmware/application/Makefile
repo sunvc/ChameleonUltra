@@ -490,6 +490,9 @@ help:
 
 TEMPLATE_PATH := $(SDK_ROOT)/components/toolchain/gcc
 
+# MAX fork hook: custom feature sources (single include point, before common rules)
+-include $(PROJ_DIR)/max/max_features.mk
+
 include ../Makefile.defs
 include $(TEMPLATE_PATH)/Makefile.common
 
