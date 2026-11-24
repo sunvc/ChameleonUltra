@@ -18,6 +18,7 @@
 #include "fds_util.h"
 #include "settings.h"
 #include "tag_emulation.h"
+#include "rfid_main.h"
 
 #include "bravo_compat.h"
 #include "bravo_polling.h"
@@ -289,7 +290,9 @@ data_frame_tx_t *bravo_cmd_set_fence_active_slot(uint16_t cmd, uint16_t status, 
         if (slot >= TAG_MAX_SLOT_NUM) {
             return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
         }
+        uint8_t now = tag_emulation_get_slot();
         tag_emulation_change_slot(slot, true);
+        apply_slot_change(now, slot);  // LED marquee to the new slot
         return data_frame_make(cmd, STATUS_SUCCESS, 0, NULL);
     }
     // Legacy forwarder form: 3-byte [slot, subcmd BE16].
