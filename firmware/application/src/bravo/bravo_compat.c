@@ -19,6 +19,7 @@
 #include "settings.h"
 #include "tag_emulation.h"
 #include "rfid_main.h"
+#include "nfc_mf1.h"
 
 #include "bravo_compat.h"
 #include "bravo_polling.h"
@@ -367,6 +368,18 @@ data_frame_tx_t *bravo_compat_intercept(uint16_t cmd, uint16_t status, uint16_t 
             return data_frame_make(cmd, STATUS_PAR_ERR, 0, NULL);
         }
         return ok_empty(cmd);
+    }
+    // 4009 MF1 emulator config: dalong app appears to expect 6 fields
+    // (upstream returns 5). Append PRNG type as the 6th.
+    if (cmd == 4009) {
+        uint8_t info[6] = {0};
+        info[0] = nfc_tag_mf1_is_detection_enable();
+        info[1] = nfc_tag_mf1_is_gen1a_magic_mode();
+        info[2] = nfc_tag_mf1_is_gen2_magic_mode();
+        info[3] = nfc_tag_mf1_is_use_mf1_coll_res();
+        info[4] = nfc_tag_mf1_get_write_mode();
+        info[5] = nfc_tag_mf1_get_prng_type();
+        return data_frame_make(cmd, STATUS_SUCCESS, 6, info);
     }
     (void)status;
     return NULL;
